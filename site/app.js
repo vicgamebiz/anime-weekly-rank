@@ -52,9 +52,11 @@ function renderGlobal() {
   }
   grid.innerHTML = list.map((it) => {
     const metric = state.sort === "trending"
-      ? `🔥 ${it.trending ?? "-"}`
-      : `👥 ${(it.popularity ?? 0).toLocaleString()}`;
-    const score = it.score != null ? `<span class="score">★ ${it.score}</span>` : "";
+      ? `<span title="트렌딩: 이번 주 화제성 지수">🔥 ${it.trending ?? "-"}</span>`
+      : `<span title="인기도: 작품을 등록한 이용자 수">👥 ${(it.popularity ?? 0).toLocaleString()}</span>`;
+    const score = it.score != null
+      ? `<span class="score" title="평점: AniList 평균점수 (100점 만점)">★ ${it.score}</span>`
+      : "";
     const href = it.url || "#";
     return `
       <a class="card" href="${escapeHtml(href)}" target="_blank" rel="noopener">
@@ -66,7 +68,7 @@ function renderGlobal() {
         <div class="card-body">
           <p class="card-title">${escapeHtml(it.title_en || it.title_romaji)}</p>
           <p class="card-romaji">${escapeHtml(it.title_romaji || "")}</p>
-          <div class="card-meta">${score}<span>${metric}</span></div>
+          <div class="card-meta">${score}${metric}</div>
         </div>
       </a>`;
   }).join("");

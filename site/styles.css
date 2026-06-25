@@ -101,6 +101,23 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
   font-weight: 600;
 }
 
+/* ---- Legend (수치 설명) ---- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: -4px 0 16px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.legend span { display: inline-flex; align-items: baseline; gap: 6px; }
+.legend .ic { font-style: normal; color: var(--text); }
+.legend em { font-style: normal; }
+
 /* ---- Global grid ---- */
 .global-grid {
   display: grid;
