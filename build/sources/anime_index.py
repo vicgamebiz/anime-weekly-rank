@@ -20,7 +20,13 @@ MANAMI_URL = (
     "releases/latest/download/anime-offline-database-minified.json"
 )
 
-FUZZ_THRESHOLD = 90  # token_set_ratio 임계값
+# 매칭 임계값 (정밀도 우선 튜닝 — §13)
+# norm() 이 공백/기호를 모두 제거하므로 비교는 사실상 단일 토큰 문자열 유사도다.
+# 짧고 일반적인 제목(예: "turbo", "legends")이 거대한 애니 사전에 ≥90 으로
+# 잘못 걸리는 것을 막기 위해 최소 길이 + 길이비율 가드를 둔다.
+FUZZ_THRESHOLD = 90    # 퍼지 매칭 최소 점수
+MIN_FUZZY_LEN = 6      # 이 길이 미만의 짧은 제목은 fuzzy 금지(정확매칭만 허용)
+FUZZ_LEN_RATIO = 0.82  # 후보와의 길이비율 하한 — 부분/짧은 충돌 차단
 
 
 def norm(s) -> str:
@@ -104,17 +110,23 @@ class AnimeIndex:
         return self
 
     # ---- 매칭 ----
+    def _fuzzy_ok(self, n, cand, score):
+        """퍼지 매칭 수용 여부: 점수 + 길이비율 가드."""
+        if score < FUZZ_THRESHOLD:
+            return False
+        lr = min(len(n), len(cand)) / max(len(n), len(cand))
+        return lr >= FUZZ_LEN_RATIO
+
     def is_anime(self, title) -> bool:
         n = norm(title)
         if not n:
             return False
-        if n in self.title_set:
+        if n in self.title_set:           # 1차: 정규화 정확 매칭 (고정밀)
             return True
-        if _HAS_RAPIDFUZZ and self.norm_list:
-            match = process.extractOne(
-                n, self.norm_list, scorer=fuzz.token_set_ratio
-            )
-            if match and match[1] >= FUZZ_THRESHOLD:
+        # 2차: 퍼지 — 짧은 제목은 제외(일반 단어 오탐 방지) + 길이비율 가드
+        if _HAS_RAPIDFUZZ and self.norm_list and len(n) >= MIN_FUZZY_LEN:
+            match = process.extractOne(n, self.norm_list, scorer=fuzz.ratio)
+            if match and self._fuzzy_ok(n, match[0], match[1]):
                 return True
         return False
 
@@ -126,10 +138,10 @@ class AnimeIndex:
         meta = self.anilist_by_norm.get(n)
         if meta:
             return meta
-        if _HAS_RAPIDFUZZ and self.anilist_by_norm:
+        if _HAS_RAPIDFUZZ and self.anilist_by_norm and len(n) >= MIN_FUZZY_LEN:
             keys = list(self.anilist_by_norm.keys())
-            match = process.extractOne(n, keys, scorer=fuzz.token_set_ratio)
-            if match and match[1] >= FUZZ_THRESHOLD:
+            match = process.extractOne(n, keys, scorer=fuzz.ratio)
+            if match and self._fuzzy_ok(n, match[0], match[1]):
                 return self.anilist_by_norm[match[0]]
         return None
 

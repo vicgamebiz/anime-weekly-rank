@@ -221,7 +221,7 @@ def main():
             "netflix": "https://www.netflix.com/tudum/top10",
             "trends": "https://trends.google.com",
         },
-        "notes": "권역 실시청은 Netflix Top10 내 애니만 반영하며 카탈로그 한계로 누락이 있을 수 있습니다.",
+        "notes": "권역 실시청은 Netflix Top10 중 TV 애니 시리즈만 반영하며 카탈로그 한계로 누락이 있을 수 있습니다.",
     }
 
     os.makedirs(HISTORY_DIR, exist_ok=True)

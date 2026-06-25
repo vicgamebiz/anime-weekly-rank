@@ -46,6 +46,11 @@ def fetch(anime_index):
             title = str(row.get("show_title", "")).strip()
             if not title:
                 continue
+            # 권역 실시청은 TV 시리즈(category에 'TV' 포함)로 한정한다.
+            # 서양 영화(Films)가 일반 단어로 애니 동의어에 오탐 매칭되는 사례
+            # (예: Spectre, Turbo, Sonic the Hedgehog 3)를 차단 — 정밀도 우선(§13).
+            if "TV" not in str(row.get("category", "")).upper():
+                continue
             if not anime_index.is_anime(title):
                 continue
             try:
