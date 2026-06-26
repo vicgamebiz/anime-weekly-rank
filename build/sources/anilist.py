@@ -35,14 +35,40 @@ query ($page: Int, $perPage: Int) {
 """
 
 
-def _post(page, per_page, retries=3):
-    """단일 페이지 요청 + 429/5xx 백오프 재시도."""
+# 분기(시즌) 방영작 쿼리 — season/seasonYear 필터. 시리즈 중심(TV/TV_SHORT/ONA).
+SEASON_QUERY = """
+query ($page: Int, $perPage: Int, $season: MediaSeason, $seasonYear: Int) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo { hasNextPage }
+    media(type: ANIME, season: $season, seasonYear: $seasonYear,
+          format_in: [TV, TV_SHORT, ONA], sort: POPULARITY_DESC) {
+      id
+      title { romaji english native }
+      synonyms
+      popularity
+      trending
+      averageScore
+      episodes
+      format
+      season
+      seasonYear
+      coverImage { large extraLarge color }
+      siteUrl
+      countryOfOrigin
+    }
+  }
+}
+"""
+
+
+def _graphql(query, variables, retries=3):
+    """공통 GraphQL 요청 + 429/5xx 백오프 재시도. Page 객체 반환."""
     last_err = None
     for attempt in range(retries):
         try:
             r = requests.post(
                 URL,
-                json={"query": QUERY, "variables": {"page": page, "perPage": per_page}},
+                json={"query": query, "variables": variables},
                 headers=HEADERS,
                 timeout=30,
             )
@@ -67,11 +93,34 @@ def fetch_global(per_page=50, max_pages=1):
     """
     media = []
     for page in range(1, max_pages + 1):
-        data = _post(page, per_page)
+        data = _graphql(QUERY, {"page": page, "perPage": per_page})
         media.extend(data.get("media", []))
         if not data.get("pageInfo", {}).get("hasNextPage"):
             break
         time.sleep(0.7)  # rate limit 여유 (분당 ~90req)
+    return media
+
+
+def fetch_season(season, year, per_page=50, max_pages=1):
+    """
+    특정 분기(season: WINTER/SPRING/SUMMER/FALL, year)의 방영작 리스트.
+    인기도(POPULARITY_DESC)로 받아 후보 풀을 확보하고, 정렬은 프런트/조립에서 처리.
+    AniList 호출이 실패해도 빌드를 죽이지 않도록 예외 시 빈 리스트 반환.
+    """
+    media = []
+    try:
+        for page in range(1, max_pages + 1):
+            data = _graphql(
+                SEASON_QUERY,
+                {"page": page, "perPage": per_page,
+                 "season": season, "seasonYear": year},
+            )
+            media.extend(data.get("media", []))
+            if not data.get("pageInfo", {}).get("hasNextPage"):
+                break
+            time.sleep(0.7)
+    except Exception as e:  # noqa: BLE001
+        print(f"[anilist] fetch_season({season} {year}) failed: {e}")
     return media
 
 

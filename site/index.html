@@ -36,6 +36,19 @@
       <div class="global-grid" id="global-grid"><!-- JS 렌더 --></div>
     </section>
 
+    <!-- 이번 분기 방영작 -->
+    <section class="section" id="seasonal-section">
+      <div class="section-head">
+        <h2>이번 분기 방영작 <span class="season-label" id="season-label"></span></h2>
+        <div class="toggle" id="season-sort-toggle" role="tablist" aria-label="분기 정렬 기준">
+          <button class="toggle-btn active" data-sort="trending" role="tab">트렌딩</button>
+          <button class="toggle-btn" data-sort="popularity" role="tab">인기도</button>
+          <button class="toggle-btn" data-sort="score" role="tab">평점</button>
+        </div>
+      </div>
+      <div class="global-grid" id="seasonal-grid"><!-- JS 렌더 --></div>
+    </section>
+
     <!-- 권역 탭 -->
     <section class="section" id="region-section">
       <div class="section-head">

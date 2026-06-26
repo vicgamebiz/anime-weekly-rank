@@ -76,6 +76,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
   flex-wrap: wrap;
 }
 .section-head h2 { margin: 0; font-size: 1.15rem; }
+.season-label { font-size: 0.85rem; font-weight: 500; color: var(--accent); margin-left: 4px; }
 
 /* ---- Toggle ---- */
 .toggle {

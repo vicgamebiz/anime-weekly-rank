@@ -3,7 +3,8 @@
 
 const state = {
   data: null,
-  sort: "trending",      // "trending" | "popularity"
+  sort: "trending",      // 글로벌: "trending" | "popularity"
+  seasonSort: "trending", // 시즌: "trending" | "popularity" | "score"
   region: null,          // 현재 권역 key
 };
 
@@ -42,36 +43,66 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+// ---- 공용 애니 카드 (글로벌/시즌 공용) ----
+function metricHtml(it, sort) {
+  if (sort === "popularity") {
+    return `<span title="인기도: 작품을 등록한 이용자 수">👥 ${(it.popularity ?? 0).toLocaleString()}</span>`;
+  }
+  if (sort === "score") {
+    // 평점 정렬에선 ★ 배지가 이미 점수를 보여주므로, 보조 정보로 화수/형식 표시
+    const ep = it.episodes ? `📺 ${it.episodes}화` : (it.format || "");
+    return ep ? `<span title="에피소드 / 형식">${escapeHtml(ep)}</span>` : "";
+  }
+  return `<span title="트렌딩: 이번 주 화제성 지수">🔥 ${it.trending ?? "-"}</span>`;
+}
+
+function animeCard(it, sort) {
+  const score = it.score != null
+    ? `<span class="score" title="평점: AniList 평균점수 (100점 만점)">★ ${it.score}</span>`
+    : "";
+  const href = it.url || "#";
+  return `
+    <a class="card" href="${escapeHtml(href)}" target="_blank" rel="noopener">
+      <div class="card-cover">
+        ${imgTag(it.cover, "", it.title_en)}
+        <span class="rank-badge">${it.rank}</span>
+        ${deltaBadge(it.delta)}
+      </div>
+      <div class="card-body">
+        <p class="card-title">${escapeHtml(it.title_en || it.title_romaji)}</p>
+        <p class="card-romaji">${escapeHtml(it.title_romaji || "")}</p>
+        <div class="card-meta">${score}${metricHtml(it, sort)}</div>
+      </div>
+    </a>`;
+}
+
 // ---- 글로벌 Top20 ----
 function renderGlobal() {
   const grid = document.getElementById("global-grid");
   const list = (state.data.global && state.data.global[state.sort]) || [];
-  if (!list.length) {
-    grid.innerHTML = '<p class="empty">데이터가 없습니다.</p>';
-    return;
-  }
-  grid.innerHTML = list.map((it) => {
-    const metric = state.sort === "trending"
-      ? `<span title="트렌딩: 이번 주 화제성 지수">🔥 ${it.trending ?? "-"}</span>`
-      : `<span title="인기도: 작품을 등록한 이용자 수">👥 ${(it.popularity ?? 0).toLocaleString()}</span>`;
-    const score = it.score != null
-      ? `<span class="score" title="평점: AniList 평균점수 (100점 만점)">★ ${it.score}</span>`
-      : "";
-    const href = it.url || "#";
-    return `
-      <a class="card" href="${escapeHtml(href)}" target="_blank" rel="noopener">
-        <div class="card-cover">
-          ${imgTag(it.cover, "", it.title_en)}
-          <span class="rank-badge">${it.rank}</span>
-          ${deltaBadge(it.delta)}
-        </div>
-        <div class="card-body">
-          <p class="card-title">${escapeHtml(it.title_en || it.title_romaji)}</p>
-          <p class="card-romaji">${escapeHtml(it.title_romaji || "")}</p>
-          <div class="card-meta">${score}${metric}</div>
-        </div>
-      </a>`;
-  }).join("");
+  grid.innerHTML = list.length
+    ? list.map((it) => animeCard(it, state.sort)).join("")
+    : '<p class="empty">데이터가 없습니다.</p>';
+}
+
+// ---- 이번 분기 방영작 ----
+function renderSeasonal() {
+  const section = document.getElementById("seasonal-section");
+  const s = state.data.seasonal;
+  const hasData = s && ((s.trending && s.trending.length) ||
+    (s.popularity && s.popularity.length) || (s.score && s.score.length));
+  if (!section) return;
+  if (!hasData) { section.style.display = "none"; return; }
+  section.style.display = "";
+
+  const label = document.getElementById("season-label");
+  if (label) label.textContent = s.label_ko ? `(${s.label_ko} 분기)` : "";
+
+  const list = s[state.seasonSort] || [];
+  const grid = document.getElementById("seasonal-grid");
+  grid.innerHTML = list.length
+    ? list.map((it) => animeCard(it, state.seasonSort)).join("")
+    : '<p class="empty">이번 분기 데이터가 없습니다.</p>';
 }
 
 // ---- 권역 탭 ----
@@ -191,6 +222,17 @@ function wireSortToggle() {
   });
 }
 
+function wireSeasonToggle() {
+  document.querySelectorAll("#season-sort-toggle .toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.seasonSort = btn.dataset.sort;
+      document.querySelectorAll("#season-sort-toggle .toggle-btn")
+        .forEach((b) => b.classList.toggle("active", b === btn));
+      renderSeasonal();
+    });
+  });
+}
+
 // ---- init ----
 async function init() {
   const main = document.querySelector("main");
@@ -208,7 +250,9 @@ async function init() {
 
   renderMeta();
   wireSortToggle();
+  wireSeasonToggle();
   renderGlobal();
+  renderSeasonal();
   renderTabs();
   renderRegionPanel();
 }

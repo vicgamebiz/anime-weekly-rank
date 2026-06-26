@@ -74,6 +74,52 @@ def build_global_lists(media):
     return make(by_trending), make(by_popularity)
 
 
+SEASON_LABELS_KO = {"WINTER": "겨울", "SPRING": "봄", "SUMMER": "여름", "FALL": "가을"}
+
+
+def current_season(d):
+    """월 기준 분기: 1-3 겨울 / 4-6 봄 / 7-9 여름 / 10-12 가을."""
+    m = d.month
+    if m <= 3:
+        return "WINTER"
+    if m <= 6:
+        return "SPRING"
+    if m <= 9:
+        return "SUMMER"
+    return "FALL"
+
+
+def build_seasonal_lists(media, n=24):
+    """분기 방영작을 trending/popularity/score 3정렬로 각각 Top n 생성."""
+    def item(m, rank):
+        title_en, title_romaji = _title_en_romaji(m)
+        return {
+            "rank": rank,
+            "anilist_id": m.get("id"),
+            "title_en": title_en,
+            "title_romaji": title_romaji,
+            "score": m.get("averageScore"),
+            "popularity": m.get("popularity"),
+            "trending": m.get("trending"),
+            "cover": (m.get("coverImage") or {}).get("large"),
+            "url": m.get("siteUrl"),
+            "country": m.get("countryOfOrigin"),
+            "format": m.get("format"),
+            "episodes": m.get("episodes"),
+            "delta": None,
+        }
+
+    def make(sort_key):
+        s = sorted(media, key=lambda m: (m.get(sort_key) or 0), reverse=True)
+        return [item(m, i) for i, m in enumerate(s[:n], start=1)]
+
+    return {
+        "trending": make("trending"),
+        "popularity": make("popularity"),
+        "score": make("averageScore"),
+    }
+
+
 def load_prev_snapshot(cur_week):
     """직전 주 스냅샷(가장 최근, 현재 주 제외)을 로드. 없으면 None."""
     files = sorted(glob.glob(os.path.join(HISTORY_DIR, "*.json")))
@@ -144,6 +190,12 @@ def main():
     # 3) 글로벌 Top20 (trending / popularity)
     trending_list, popularity_list = build_global_lists(media)
 
+    # 3.5) 이번 분기(시즌) 방영작 — trending/popularity/score 3정렬
+    season = current_season(now.date())
+    season_media = anilist.fetch_season(season, now.year, per_page=50)
+    seasonal = build_seasonal_lists(season_media, n=24)
+    print(f"[main] seasonal {season} {now.year}: {len(season_media)} media")
+
     # 4) Netflix 권역별 실시청
     regions_netflix, netflix_week = netflix.fetch(index)
 
@@ -159,6 +211,9 @@ def main():
     if prev:
         apply_deltas(trending_list, prev.get("global", {}).get("trending"), "title_en")
         apply_deltas(popularity_list, prev.get("global", {}).get("popularity"), "title_en")
+        prev_season = prev.get("seasonal", {}) or {}
+        for sk in ("trending", "popularity", "score"):
+            apply_deltas(seasonal[sk], prev_season.get(sk), "title_en")
         for key in REGIONS:
             prev_nf = (prev.get("regions", {}).get(key, {}) or {}).get("netflix")
             apply_deltas(regions_netflix.get(key, []), prev_nf, "title")
@@ -166,6 +221,9 @@ def main():
         print("[delta] no previous snapshot -> all 'new'")
         for it in trending_list + popularity_list:
             it["delta"] = "new"
+        for sk in ("trending", "popularity", "score"):
+            for it in seasonal[sk]:
+                it["delta"] = "new"
         for key in REGIONS:
             for it in regions_netflix.get(key, []):
                 it["delta"] = "new"
@@ -215,6 +273,14 @@ def main():
             "trending": trending_list,
             "popularity": popularity_list,
         },
+        "seasonal": {
+            "season": season,
+            "season_year": now.year,
+            "label_ko": f"{now.year} {SEASON_LABELS_KO[season]}",
+            "trending": seasonal["trending"],
+            "popularity": seasonal["popularity"],
+            "score": seasonal["score"],
+        },
         "regions": regions_out,
         "sources": {
             "anilist": "https://anilist.co",
@@ -235,6 +301,8 @@ def main():
     print("\n=== SUMMARY ===")
     print(f"  week={week}  netflix_week={netflix_week}")
     print(f"  global trending top: {trending_list[0]['title_en'] if trending_list else '-'}")
+    print(f"  seasonal {season} {now.year}: {len(seasonal['trending'])} titles, "
+          f"top={seasonal['trending'][0]['title_en'] if seasonal['trending'] else '-'}")
     for key in REGION_ORDER:
         nf_n = len(regions_out[key]["netflix"])
         tr_n = len(regions_out[key]["trends"])
