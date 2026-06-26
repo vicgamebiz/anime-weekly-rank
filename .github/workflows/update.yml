@@ -28,6 +28,12 @@ jobs:
         run: pip install -r build/requirements.txt
 
       - name: Fetch & build data
+        # Google Trends 는 Actions 러너 IP 가 항상 429 로 차단돼 결과가 비어 있고,
+        # 재시도 sleep 때문에 빌드의 8할(~10분)을 잡아먹는다. 그래서 CI 에선 건너뛴다.
+        # (관심도 섹션은 어차피 비어 있던 상태 → 화면 변화 없음, 빌드만 ~2분으로 단축)
+        # Trends 를 다시 켜려면 아래 env 줄을 지우거나 "0" 으로 바꾼다.
+        env:
+          TRENDS_FORCE_FAIL: "1"
         run: python build/fetch_data.py
 
       - name: Commit updated data
