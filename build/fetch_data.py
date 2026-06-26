@@ -89,34 +89,62 @@ def current_season(d):
     return "FALL"
 
 
+def _media_item(m, rank):
+    """data.json 카드 1건(공용: 글로벌/분기/기대작)."""
+    title_en, title_romaji = _title_en_romaji(m)
+    return {
+        "rank": rank,
+        "anilist_id": m.get("id"),
+        "title_en": title_en,
+        "title_romaji": title_romaji,
+        "score": m.get("averageScore"),
+        "popularity": m.get("popularity"),
+        "trending": m.get("trending"),
+        "favourites": m.get("favourites"),
+        "cover": (m.get("coverImage") or {}).get("large"),
+        "url": m.get("siteUrl"),
+        "country": m.get("countryOfOrigin"),
+        "format": m.get("format"),
+        "episodes": m.get("episodes"),
+        "delta": None,
+    }
+
+
+def _ranked(media, sort_key, n):
+    s = sorted(media, key=lambda m: (m.get(sort_key) or 0), reverse=True)
+    return [_media_item(m, i) for i, m in enumerate(s[:n], start=1)]
+
+
 def build_seasonal_lists(media, n=24):
     """분기 방영작을 trending/popularity/score 3정렬로 각각 Top n 생성."""
-    def item(m, rank):
-        title_en, title_romaji = _title_en_romaji(m)
-        return {
-            "rank": rank,
-            "anilist_id": m.get("id"),
-            "title_en": title_en,
-            "title_romaji": title_romaji,
-            "score": m.get("averageScore"),
-            "popularity": m.get("popularity"),
-            "trending": m.get("trending"),
-            "cover": (m.get("coverImage") or {}).get("large"),
-            "url": m.get("siteUrl"),
-            "country": m.get("countryOfOrigin"),
-            "format": m.get("format"),
-            "episodes": m.get("episodes"),
-            "delta": None,
-        }
-
-    def make(sort_key):
-        s = sorted(media, key=lambda m: (m.get(sort_key) or 0), reverse=True)
-        return [item(m, i) for i, m in enumerate(s[:n], start=1)]
-
     return {
-        "trending": make("trending"),
-        "popularity": make("popularity"),
-        "score": make("averageScore"),
+        "trending": _ranked(media, "trending", n),
+        "popularity": _ranked(media, "popularity", n),
+        "score": _ranked(media, "averageScore", n),
+    }
+
+
+SEASON_ORDER = ["WINTER", "SPRING", "SUMMER", "FALL"]
+
+
+def next_season(season, year, steps=1):
+    """현재 분기 기준 steps 만큼 뒤 분기 (season, year) 반환."""
+    i = SEASON_ORDER.index(season) + steps
+    return SEASON_ORDER[i % 4], year + i // 4
+
+
+def build_upcoming_lists(media, n=20):
+    """
+    기대작(미방영) 정렬:
+      - popularity : 기대지수(관심등록 수) — 기본
+      - trending   : 화제성(최근 PV/뉴스 버즈)
+      - favourites : 즐겨찾기(팬덤)
+    평점은 미방영이라 제외.
+    """
+    return {
+        "popularity": _ranked(media, "popularity", n),
+        "trending": _ranked(media, "trending", n),
+        "favourites": _ranked(media, "favourites", n),
     }
 
 
@@ -196,6 +224,19 @@ def main():
     seasonal = build_seasonal_lists(season_media, n=24)
     print(f"[main] seasonal {season} {now.year}: {len(season_media)} media")
 
+    # 3.6) 기대작 — 차기 + 차차기 분기(미방영) 기대지수/화제성/즐겨찾기
+    upcoming = []
+    for steps in (1, 2):
+        us, uy = next_season(season, now.year, steps)
+        um = anilist.fetch_season(us, uy, per_page=50)
+        lists = build_upcoming_lists(um, n=20)
+        upcoming.append({
+            "season": us, "season_year": uy,
+            "label_ko": f"{uy} {SEASON_LABELS_KO[us]}",
+            **lists,
+        })
+        print(f"[main] upcoming {us} {uy}: {len(um)} media")
+
     # 4) Netflix 권역별 실시청
     regions_netflix, netflix_week = netflix.fetch(index)
 
@@ -214,6 +255,12 @@ def main():
         prev_season = prev.get("seasonal", {}) or {}
         for sk in ("trending", "popularity", "score"):
             apply_deltas(seasonal[sk], prev_season.get(sk), "title_en")
+        prev_up = {(s.get("season"), s.get("season_year")): s
+                   for s in (prev.get("upcoming", {}) or {}).get("seasons", [])}
+        for blk in upcoming:
+            pmatch = prev_up.get((blk["season"], blk["season_year"]), {})
+            for sk in ("popularity", "trending", "favourites"):
+                apply_deltas(blk[sk], pmatch.get(sk), "title_en")
         for key in REGIONS:
             prev_nf = (prev.get("regions", {}).get(key, {}) or {}).get("netflix")
             apply_deltas(regions_netflix.get(key, []), prev_nf, "title")
@@ -224,6 +271,10 @@ def main():
         for sk in ("trending", "popularity", "score"):
             for it in seasonal[sk]:
                 it["delta"] = "new"
+        for blk in upcoming:
+            for sk in ("popularity", "trending", "favourites"):
+                for it in blk[sk]:
+                    it["delta"] = "new"
         for key in REGIONS:
             for it in regions_netflix.get(key, []):
                 it["delta"] = "new"
@@ -281,6 +332,9 @@ def main():
             "popularity": seasonal["popularity"],
             "score": seasonal["score"],
         },
+        "upcoming": {
+            "seasons": upcoming,
+        },
         "regions": regions_out,
         "sources": {
             "anilist": "https://anilist.co",
@@ -303,6 +357,10 @@ def main():
     print(f"  global trending top: {trending_list[0]['title_en'] if trending_list else '-'}")
     print(f"  seasonal {season} {now.year}: {len(seasonal['trending'])} titles, "
           f"top={seasonal['trending'][0]['title_en'] if seasonal['trending'] else '-'}")
+    for blk in upcoming:
+        top = blk["popularity"][0]["title_en"] if blk["popularity"] else "-"
+        print(f"  upcoming {blk['season']} {blk['season_year']}: "
+              f"{len(blk['popularity'])} titles, top(기대지수)={top}")
     for key in REGION_ORDER:
         nf_n = len(regions_out[key]["netflix"])
         tr_n = len(regions_out[key]["trends"])

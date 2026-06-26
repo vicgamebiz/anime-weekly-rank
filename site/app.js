@@ -3,8 +3,11 @@
 
 const state = {
   data: null,
+  view: "global",        // 랭킹 탭: "global" | "seasonal" | "upcoming"
   sort: "trending",      // 글로벌: "trending" | "popularity"
   seasonSort: "trending", // 시즌: "trending" | "popularity" | "score"
+  upcomingSort: "popularity", // 기대작: "popularity" | "trending" | "favourites"
+  upcomingIdx: 0,        // 선택된 기대작 분기 인덱스
   region: null,          // 현재 권역 key
 };
 
@@ -53,6 +56,9 @@ function metricHtml(it, sort) {
     const ep = it.episodes ? `📺 ${it.episodes}화` : (it.format || "");
     return ep ? `<span title="에피소드 / 형식">${escapeHtml(ep)}</span>` : "";
   }
+  if (sort === "favourites") {
+    return `<span title="즐겨찾기: 즐겨찾기에 추가한 이용자 수">♥ ${(it.favourites ?? 0).toLocaleString()}</span>`;
+  }
   return `<span title="트렌딩: 이번 주 화제성 지수">🔥 ${it.trending ?? "-"}</span>`;
 }
 
@@ -87,22 +93,78 @@ function renderGlobal() {
 
 // ---- 이번 분기 방영작 ----
 function renderSeasonal() {
-  const section = document.getElementById("seasonal-section");
   const s = state.data.seasonal;
-  const hasData = s && ((s.trending && s.trending.length) ||
-    (s.popularity && s.popularity.length) || (s.score && s.score.length));
-  if (!section) return;
-  if (!hasData) { section.style.display = "none"; return; }
-  section.style.display = "";
-
   const label = document.getElementById("season-label");
-  if (label) label.textContent = s.label_ko ? `(${s.label_ko} 분기)` : "";
-
-  const list = s[state.seasonSort] || [];
+  if (label) label.textContent = s && s.label_ko ? `(${s.label_ko} 분기)` : "";
+  const list = (s && s[state.seasonSort]) || [];
   const grid = document.getElementById("seasonal-grid");
+  if (!grid) return;
   grid.innerHTML = list.length
     ? list.map((it) => animeCard(it, state.seasonSort)).join("")
     : '<p class="empty">이번 분기 데이터가 없습니다.</p>';
+}
+
+// ---- 분기별 기대작 (차기 + 차차기) ----
+function seasonsUpcoming() {
+  return (state.data.upcoming && state.data.upcoming.seasons) || [];
+}
+
+function renderUpcomingChips() {
+  const chips = document.getElementById("upcoming-chips");
+  const seasons = seasonsUpcoming();
+  if (!chips) return;
+  chips.innerHTML = seasons.map((s, i) =>
+    `<button class="chip${i === state.upcomingIdx ? " active" : ""}" data-idx="${i}">` +
+    `${escapeHtml(s.label_ko || (s.season + " " + s.season_year))}</button>`
+  ).join("");
+  chips.querySelectorAll(".chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.upcomingIdx = Number(btn.dataset.idx);
+      renderUpcomingChips();
+      renderUpcoming();
+    });
+  });
+}
+
+function renderUpcoming() {
+  const seasons = seasonsUpcoming();
+  const grid = document.getElementById("upcoming-grid");
+  const label = document.getElementById("upcoming-label");
+  if (!grid) return;
+  const blk = seasons[state.upcomingIdx];
+  if (!blk) {
+    if (label) label.textContent = "";
+    grid.innerHTML = '<p class="empty">기대작 데이터가 없습니다.</p>';
+    return;
+  }
+  if (label) label.textContent = blk.label_ko ? `(${blk.label_ko})` : "";
+  const list = blk[state.upcomingSort] || [];
+  grid.innerHTML = list.length
+    ? list.map((it) => animeCard(it, state.upcomingSort)).join("")
+    : '<p class="empty">기대작 데이터가 없습니다.</p>';
+}
+
+// ---- 랭킹 탭 전환 ----
+function setTabAvailable(view, available) {
+  const btn = document.querySelector(`.rank-tab[data-view="${view}"]`);
+  if (btn) btn.style.display = available ? "" : "none";
+}
+
+function switchView(view) {
+  state.view = view;
+  document.querySelectorAll(".rank-tab").forEach((b) =>
+    b.classList.toggle("active", b.dataset.view === view));
+  document.querySelectorAll(".rank-view").forEach((v) => {
+    const on = v.id === `${view}-view`;
+    v.classList.toggle("active", on);
+    v.hidden = !on;
+  });
+}
+
+function wireRankTabs() {
+  document.querySelectorAll(".rank-tab").forEach((btn) => {
+    btn.addEventListener("click", () => switchView(btn.dataset.view));
+  });
 }
 
 // ---- 권역 탭 ----
@@ -233,6 +295,17 @@ function wireSeasonToggle() {
   });
 }
 
+function wireUpcomingToggle() {
+  document.querySelectorAll("#upcoming-sort-toggle .toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.upcomingSort = btn.dataset.sort;
+      document.querySelectorAll("#upcoming-sort-toggle .toggle-btn")
+        .forEach((b) => b.classList.toggle("active", b === btn));
+      renderUpcoming();
+    });
+  });
+}
+
 // ---- init ----
 async function init() {
   const main = document.querySelector("main");
@@ -251,8 +324,22 @@ async function init() {
   renderMeta();
   wireSortToggle();
   wireSeasonToggle();
+  wireUpcomingToggle();
+  wireRankTabs();
+
+  // 데이터 유무에 따라 탭 노출 결정
+  const s = state.data.seasonal;
+  const hasSeasonal = s && ((s.trending && s.trending.length) ||
+    (s.popularity && s.popularity.length) || (s.score && s.score.length));
+  setTabAvailable("seasonal", !!hasSeasonal);
+  setTabAvailable("upcoming", seasonsUpcoming().length > 0);
+
   renderGlobal();
   renderSeasonal();
+  renderUpcomingChips();
+  renderUpcoming();
+  switchView(state.view);
+
   renderTabs();
   renderRegionPanel();
 }

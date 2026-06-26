@@ -47,9 +47,11 @@ query ($page: Int, $perPage: Int, $season: MediaSeason, $seasonYear: Int) {
       synonyms
       popularity
       trending
+      favourites
       averageScore
       episodes
       format
+      status
       season
       seasonYear
       coverImage { large extraLarge color }
