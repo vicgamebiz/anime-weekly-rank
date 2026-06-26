@@ -2,7 +2,7 @@
 
 매주 자동으로 갱신되는, **비용 0**의 정적 웹페이지입니다. 사용자 PC 없이 GitHub Actions가 매주 데이터를 수집해 갱신·배포합니다.
 
-🔗 **공개 URL**: https://dongdayo-88.github.io/anime-weekly-rank/
+🔗 **공개 URL**: https://vicgamebiz.github.io/anime-weekly-rank/
 
 - **헤드라인**: 글로벌 주간 애니 인기 Top 20 (AniList 기반, 트렌딩/인기도 토글)
 - **권역 탭**: 일본 / 한국 / 북미 / 유럽 / 동남아 — 각 탭에 두 신호 병기
@@ -72,11 +72,11 @@ python -m http.server 8000 --directory site
 ## 배포 초기 설정 (1회만)
 
 0. (사전) 로컬에 Git + GitHub 인증 완료 (`gh auth login` 또는 PAT).
-1. GitHub 계정 `dongdayo-88`에 **public** 리포 `anime-weekly-rank` 생성 후 이 구조 push.
+1. GitHub 계정 `vicgamebiz`에 **public** 리포 `anime-weekly-rank` 생성 후 이 구조 push.
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions** 선택.
 3. **Settings → Actions → General → Workflow permissions: Read and write** 활성화.
 4. **Actions 탭 → `Weekly Anime Rank Update` → Run workflow**로 1회 수동 실행 → 첫 `data.json` 생성·배포 확인.
-5. 발급된 https://dongdayo-88.github.io/anime-weekly-rank/ 링크 공유.
+5. 발급된 https://vicgamebiz.github.io/anime-weekly-rank/ 링크 공유.
 6. 이후 매주 월요일 자동 갱신.
 
 > cron 시각 변경: KST 기준 원하는 시각 −9시간을 UTC cron으로 환산해 `update.yml` 수정.

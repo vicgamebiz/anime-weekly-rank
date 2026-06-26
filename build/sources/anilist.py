@@ -9,7 +9,7 @@ URL = "https://graphql.anilist.co"
 HEADERS = {
     "Content-Type": "application/json",
     "Accept": "application/json",
-    "User-Agent": "anime-weekly-rank/1.0 (+https://github.com/dongdayo-88/anime-weekly-rank)",
+    "User-Agent": "anime-weekly-rank/1.0 (+https://github.com/vicgamebiz/anime-weekly-rank)",
 }
 
 QUERY = """
