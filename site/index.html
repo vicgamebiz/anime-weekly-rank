@@ -28,7 +28,10 @@
     <!-- 랭킹 블록: 왼쪽 세로 탭 + 콘텐츠 -->
     <div class="rank-block">
       <nav class="rank-nav" id="rank-nav" role="tablist" aria-label="랭킹 보기">
-        <button class="rank-tab active" data-view="global" role="tab">
+        <button class="rank-tab active" data-view="overview" role="tab">
+          <span class="rank-tab-ic">📊</span><span data-i18n="tab.overview">시장 개요</span>
+        </button>
+        <button class="rank-tab" data-view="global" role="tab">
           <span class="rank-tab-ic">🌐</span><span data-i18n="tab.global">글로벌 Top 20</span>
         </button>
         <button class="rank-tab" data-view="seasonal" role="tab">
@@ -40,8 +43,43 @@
       </nav>
 
       <div class="rank-content">
+        <!-- 시장 개요 대시보드 -->
+        <section class="rank-view active" id="overview-view" role="tabpanel">
+          <div class="section-head">
+            <h2><span data-i18n="h.overview">시장 개요</span> <span class="season-label" id="overview-label"></span></h2>
+          </div>
+          <div class="ov-kpis" id="ov-kpis"><!-- JS --></div>
+          <div class="ov-row ov-three">
+            <div class="panel">
+              <h4 data-i18n="ov.source">원작 유형 분포</h4>
+              <div id="ov-source"><!-- JS 도넛+범례 --></div>
+            </div>
+            <div class="panel">
+              <h4 data-i18n="ov.genres">장르 Top</h4>
+              <div class="bars" id="ov-genres"><!-- JS --></div>
+            </div>
+            <div class="panel">
+              <h4 data-i18n="ov.country">제작 국가</h4>
+              <div class="bars" id="ov-countries"><!-- JS --></div>
+              <h4 style="margin-top:16px" data-i18n="ov.studio">스튜디오 Top</h4>
+              <div class="bars" id="ov-studios"><!-- JS --></div>
+            </div>
+          </div>
+          <div class="ov-row ov-split">
+            <div class="panel ov-heat">
+              <h4 data-i18n="ov.heatmap">권역 실시청 히트맵</h4>
+              <div id="ov-heatmap"><!-- JS 테이블 --></div>
+              <div class="ov-heat-note" data-i18n="ov.heatnote">셀 = 권역 Netflix 순위 · "·" 미진입</div>
+            </div>
+            <div class="panel">
+              <h4 data-i18n="ov.movers">이번 주 급등락</h4>
+              <div class="movers" id="ov-movers"><!-- JS --></div>
+            </div>
+          </div>
+        </section>
+
         <!-- 글로벌 Top20 -->
-        <section class="rank-view active" id="global-view" role="tabpanel">
+        <section class="rank-view" id="global-view" role="tabpanel" hidden>
           <div class="section-head">
             <h2 data-i18n="h.global">글로벌 Top 20</h2>
             <div class="toggle" id="sort-toggle" role="tablist" aria-label="정렬 기준">

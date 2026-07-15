@@ -52,6 +52,9 @@ query ($page: Int, $perPage: Int, $season: MediaSeason, $seasonYear: Int) {
       episodes
       format
       status
+      source
+      genres
+      studios { edges { isMain node { name } } }
       season
       seasonYear
       coverImage { large extraLarge color }

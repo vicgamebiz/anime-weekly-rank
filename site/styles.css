@@ -213,6 +213,54 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
 .legend .ic { font-style: normal; color: var(--text); }
 .legend em { font-style: normal; }
 
+/* ---- 시장 개요 대시보드 ---- */
+.ov-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.kpi { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 11px; padding: 11px 13px; }
+.kpi .lab { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 5px; }
+.kpi .val { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.kpi .val small { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+.kpi .val.sm { font-size: 1rem; }
+.kpi .foot { font-size: 0.7rem; color: var(--text-dim); margin-top: 5px; }
+.kpi .up { color: var(--up); } .kpi .down { color: var(--down); } .kpi .acc { color: var(--accent); }
+
+.ov-row { display: grid; gap: 10px; margin-bottom: 10px; }
+.ov-three { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+.ov-split { grid-template-columns: 1.6fr 1fr; }
+@media (max-width: 640px) { .ov-split { grid-template-columns: 1fr; } }
+.panel { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 11px; padding: 13px; }
+.panel h4 { margin: 0 0 11px; font-size: 0.85rem; font-weight: 600; }
+.panel h4 span { color: var(--text-dim); font-weight: 400; font-size: 0.72rem; }
+
+.donut-wrap { display: flex; align-items: center; gap: 12px; }
+.donut-wrap svg { flex-shrink: 0; }
+.donut-legend { display: flex; flex-direction: column; gap: 5px; font-size: 0.76rem; min-width: 0; flex: 1; }
+.donut-legend div { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.donut-legend .sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.donut-legend .pct { color: var(--text-dim); margin-left: auto; padding-left: 8px; font-variant-numeric: tabular-nums; }
+
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bars .bar { display: grid; grid-template-columns: 76px 1fr 34px; align-items: center; gap: 8px; font-size: 0.76rem; }
+.bars .bn { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bars .track { height: 9px; background: var(--bg-elev2); border-radius: 5px; overflow: hidden; }
+.bars .fill { height: 100%; border-radius: 5px; }
+.bars .bv { text-align: right; font-variant-numeric: tabular-nums; }
+
+.ov-heat { overflow-x: auto; }
+.ov-heat table { border-collapse: separate; border-spacing: 3px; font-size: 0.72rem; }
+.ov-heat th { color: var(--text-dim); font-weight: 500; text-align: center; padding: 2px 3px; white-space: nowrap; }
+.ov-heat th.rowh { text-align: right; padding-right: 6px; }
+.ov-heat td { width: 40px; height: 26px; text-align: center; border-radius: 5px; color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ov-heat td.empty { background: var(--bg-elev2); color: var(--text-dim); font-weight: 400; }
+.ov-heat-note { font-size: 0.68rem; color: var(--text-dim); margin-top: 8px; }
+
+.movers { display: flex; flex-direction: column; gap: 7px; }
+.movers .mv { display: flex; align-items: center; gap: 9px; font-size: 0.8rem; }
+.movers .mv .badge { font-size: 0.7rem; font-weight: 700; min-width: 42px; text-align: center; border-radius: 6px; padding: 2px 4px; background: var(--bg-elev2); }
+.movers .mv .up { color: var(--up); } .movers .mv .down { color: var(--down); } .movers .mv .new { color: var(--new); }
+.movers .mv .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.movers a.mv { color: inherit; }
+.ov-empty { color: var(--text-dim); font-size: 0.8rem; padding: 8px 0; }
+
 /* ---- Global grid ---- */
 .global-grid {
   display: grid;

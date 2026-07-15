@@ -13,10 +13,12 @@
 #   7. 요약 출력
 
 import os
+import re
 import sys
 import json
 import glob
 import datetime as dt
+from collections import Counter, defaultdict
 
 # build/ 와 build/sources/ 를 import 경로에 추가
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -148,6 +150,149 @@ def build_upcoming_lists(media, n=20):
     }
 
 
+# ---- 시장 개요(overview) 집계 ----
+
+# AniList source enum → 표시 버킷
+SOURCE_BUCKET = {
+    "MANGA": "MANGA",
+    "LIGHT_NOVEL": "LIGHT_NOVEL",
+    "ORIGINAL": "ORIGINAL",
+    "VIDEO_GAME": "GAME", "VISUAL_NOVEL": "GAME",
+    # NOVEL/WEB_NOVEL/DOUJINSHI/OTHER/... → OTHER
+}
+# 속편 추정용(제목에 시즌/파트 표기가 있으면 속편으로 간주 — 근사치)
+SEQUEL_RE = re.compile(
+    r"(season|cour|\bpart\b|\b2nd\b|\b3rd\b|\b4th\b|\b5th\b|\bII\b|\bIII\b|\bIV\b|[2-9]期)",
+    re.IGNORECASE,
+)
+
+
+def _source_bucket(s):
+    return SOURCE_BUCKET.get(s or "", "OTHER")
+
+
+def _is_sequel(m):
+    t = m.get("title", {}) or {}
+    return bool(SEQUEL_RE.search(f"{t.get('romaji', '')} {t.get('english', '')}"))
+
+
+def _main_studio(m):
+    for e in ((m.get("studios") or {}).get("edges") or []):
+        if e.get("isMain"):
+            return ((e.get("node") or {}).get("name")) or None
+    return None
+
+
+def build_heatmap(regions_netflix, max_titles=6):
+    """권역 × 상위작 Netflix 순위 매트릭스. 여러 권역에 걸친 작품 우선."""
+    freq = Counter()
+    rank_by = defaultdict(dict)   # key -> {region: rank}
+    meta = {}
+    for region, items in regions_netflix.items():
+        for it in items:
+            key = it.get("anilist_id") or it.get("title")
+            freq[key] += 1
+            rank_by[key][region] = it.get("rank")
+            meta.setdefault(key, it)
+    top = [k for k, _ in freq.most_common(max_titles)]
+    titles = [{"title": meta[k].get("title"), "anilist_id": meta[k].get("anilist_id")} for k in top]
+    cells = {}
+    for region in REGION_ORDER:
+        col = {}
+        for i, k in enumerate(top):
+            r = rank_by[k].get(region)
+            if r is not None:
+                col[str(i)] = r
+        cells[region] = col
+    return {"regions": REGION_ORDER, "titles": titles, "cells": cells}
+
+
+def build_movers(*lists, limit=8):
+    """delta 가 있는 항목을 모아 NEW → 상승폭 큰 순 → 하락 순으로."""
+    seen, out = set(), []
+    for lst in lists:
+        for it in lst or []:
+            d = it.get("delta")
+            if d in (None, "0"):
+                continue
+            key = it.get("anilist_id") or it.get("title_en") or it.get("title")
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({
+                "title": it.get("title_en") or it.get("title"),
+                "anilist_id": it.get("anilist_id"),
+                "delta": d,
+                "cover": it.get("cover"),
+            })
+
+    def _k(x):
+        d = x["delta"]
+        if d == "new":
+            return (0, 0)
+        try:
+            n = int(d)
+        except (TypeError, ValueError):
+            n = 0
+        return (1, -n)
+
+    out.sort(key=_k)
+    return out[:limit]
+
+
+def build_overview(media, regions_netflix, season, year):
+    """이번 분기 방영작 집계 → 시장 개요 지표(movers 제외, 나중에 채움)."""
+    total = len(media)
+
+    def _top(key):
+        if not media:
+            return None
+        best = max(media, key=lambda m: (m.get(key) or 0))
+        t = best.get("title", {}) or {}
+        return {
+            "title": t.get("english") or t.get("romaji"),
+            "value": best.get(key),
+            "anilist_id": best.get("id"),
+        }
+
+    scores = [m.get("averageScore") for m in media if m.get("averageScore")]
+    avg_score = round(sum(scores) / len(scores)) if scores else None
+    sequels = sum(1 for m in media if _is_sequel(m))
+    new_cnt = total - sequels
+
+    src = Counter(_source_bucket(m.get("source")) for m in media)
+    genres = Counter()
+    for m in media:
+        for g in (m.get("genres") or []):
+            genres[g] += 1
+    countries = Counter((m.get("countryOfOrigin") or "??") for m in media)
+    studios = Counter()
+    for m in media:
+        nm = _main_studio(m)
+        if nm:
+            studios[nm] += 1
+
+    pct = (lambda c: round(c / total * 100) if total else 0)
+    return {
+        "season": season, "season_year": year,
+        "label_ko": f"{year} {SEASON_LABELS_KO[season]}",
+        "kpi": {
+            "count": total,
+            "new_count": new_cnt, "new_pct": pct(new_cnt),
+            "sequel_count": sequels, "sequel_pct": pct(sequels),
+            "avg_score": avg_score,
+            "top_trending": _top("trending"),
+            "top_popularity": _top("popularity"),
+        },
+        "source": [{"key": k, "count": c, "pct": pct(c)} for k, c in src.most_common()],
+        "genres": [{"name": g, "count": c} for g, c in genres.most_common(8)],
+        "countries": [{"code": k, "count": c, "pct": pct(c)} for k, c in countries.most_common()],
+        "studios": [{"name": n, "count": c} for n, c in studios.most_common(6)],
+        "heatmap": build_heatmap(regions_netflix),
+        "movers": [],
+    }
+
+
 def load_prev_snapshot(cur_week):
     """직전 주 스냅샷(가장 최근, 현재 주 제외)을 로드. 없으면 None."""
     files = sorted(glob.glob(os.path.join(HISTORY_DIR, "*.json")))
@@ -240,6 +385,9 @@ def main():
     # 4) Netflix 권역별 실시청
     regions_netflix, netflix_week = netflix.fetch(index)
 
+    # 4.5) 시장 개요 집계(movers는 delta 계산 후 채움)
+    overview = build_overview(season_media, regions_netflix, season, now.year)
+
     # 5) Trends 후보 = 헤드라인 trending Top20
     trends_candidates = [
         {"title": it["title_en"], "anilist_id": it["anilist_id"]}
@@ -278,6 +426,9 @@ def main():
         for key in REGIONS:
             for it in regions_netflix.get(key, []):
                 it["delta"] = "new"
+
+    # 6.5) 개요 movers (delta 반영 후)
+    overview["movers"] = build_movers(seasonal["trending"], trending_list)
 
     # 7) data.json 조립
     regions_out = {}
@@ -320,6 +471,7 @@ def main():
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "week": week,
         "netflix_week": netflix_week,
+        "overview": overview,
         "global": {
             "trending": trending_list,
             "popularity": popularity_list,
@@ -361,6 +513,9 @@ def main():
         top = blk["popularity"][0]["title_en"] if blk["popularity"] else "-"
         print(f"  upcoming {blk['season']} {blk['season_year']}: "
               f"{len(blk['popularity'])} titles, top(기대지수)={top}")
+    ov = overview["kpi"]
+    print(f"  overview: {ov['count']}편 · 신작 {ov['new_pct']}% · 평균 {ov['avg_score']} · "
+          f"원작 {[s['key'] for s in overview['source'][:3]]} · movers {len(overview['movers'])}")
     for key in REGION_ORDER:
         nf_n = len(regions_out[key]["netflix"])
         tr_n = len(regions_out[key]["trends"])

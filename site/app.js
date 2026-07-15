@@ -4,7 +4,7 @@
 const state = {
   data: null,
   lang: "ko",            // UI 언어: "ko" | "ja"
-  view: "global",        // 랭킹 탭: "global" | "seasonal" | "upcoming"
+  view: "overview",      // 랭킹 탭: "overview" | "global" | "seasonal" | "upcoming"
   sort: "trending",      // 글로벌: "trending" | "popularity"
   seasonSort: "trending", // 시즌: "trending" | "popularity" | "score"
   upcomingSort: "popularity", // 기대작: "popularity" | "trending" | "favourites"
@@ -16,7 +16,14 @@ const state = {
 const I18N = {
   ko: {
     "title": "글로벌 애니 주간 랭킹",
-    "tab.global": "글로벌 Top 20", "tab.seasonal": "이번 분기 방영작", "tab.upcoming": "분기별 기대작",
+    "tab.overview": "시장 개요", "tab.global": "글로벌 Top 20", "tab.seasonal": "이번 분기 방영작", "tab.upcoming": "분기별 기대작",
+    "h.overview": "시장 개요",
+    "ov.source": "원작 유형 분포", "ov.genres": "장르 Top", "ov.country": "제작 국가",
+    "ov.studio": "스튜디오 Top", "ov.heatmap": "권역 실시청 히트맵", "ov.movers": "이번 주 급등락",
+    "ov.heatnote": "셀 = 권역 Netflix 순위 · \"·\" 미진입",
+    "ov.k.count": "방영 편수", "ov.k.new": "신작 비율", "ov.k.score": "평균 평점", "ov.k.top": "최고 화제작",
+    "ov.unit.works": "편", "ov.works": "TV·ONA 시리즈", "ov.trending": "트렌딩", "ov.vsPrev": "전 분기 대비",
+    "ov.new": "신작", "ov.sequel": "속편", "ov.none": "집계 데이터가 없습니다.",
     "sort.trending": "트렌딩", "sort.popularity": "인기도", "sort.score": "평점",
     "usort.popularity": "기대지수", "usort.trending": "화제성", "usort.favourites": "즐겨찾기",
     "h.global": "글로벌 Top 20", "h.seasonal": "이번 분기 방영작", "h.upcoming": "분기별 기대작", "h.region": "권역별 랭킹",
@@ -44,7 +51,14 @@ const I18N = {
   },
   ja: {
     "title": "グローバルアニメ週間ランキング",
-    "tab.global": "グローバル Top 20", "tab.seasonal": "今期放送作品", "tab.upcoming": "期待の新作",
+    "tab.overview": "市場概況", "tab.global": "グローバル Top 20", "tab.seasonal": "今期放送作品", "tab.upcoming": "期待の新作",
+    "h.overview": "市場概況",
+    "ov.source": "原作タイプ分布", "ov.genres": "ジャンル Top", "ov.country": "制作国",
+    "ov.studio": "スタジオ Top", "ov.heatmap": "地域別 実視聴ヒートマップ", "ov.movers": "今週の急上昇・急降下",
+    "ov.heatnote": "セル = 地域Netflix順位 ·「·」未ランクイン",
+    "ov.k.count": "放送本数", "ov.k.new": "新作の割合", "ov.k.score": "平均評価", "ov.k.top": "最注目作",
+    "ov.unit.works": "本", "ov.works": "TV・ONAシリーズ", "ov.trending": "トレンド", "ov.vsPrev": "前期比",
+    "ov.new": "新作", "ov.sequel": "続編", "ov.none": "集計データがありません。",
     "sort.trending": "トレンド", "sort.popularity": "人気", "sort.score": "評価",
     "usort.popularity": "期待度", "usort.trending": "話題性", "usort.favourites": "お気に入り",
     "h.global": "グローバル Top 20", "h.seasonal": "今期放送作品", "h.upcoming": "期待の新作", "h.region": "地域別ランキング",
@@ -80,6 +94,26 @@ const SEASON_NAMES = {
   ko: { WINTER: "겨울", SPRING: "봄", SUMMER: "여름", FALL: "가을" },
   ja: { WINTER: "冬", SPRING: "春", SUMMER: "夏", FALL: "秋" },
 };
+const SOURCE_NAMES = {
+  ko: { MANGA: "만화", LIGHT_NOVEL: "라이트노벨", ORIGINAL: "오리지널", GAME: "게임·VN", OTHER: "기타" },
+  ja: { MANGA: "漫画", LIGHT_NOVEL: "ライトノベル", ORIGINAL: "オリジナル", GAME: "ゲーム・VN", OTHER: "その他" },
+};
+const COUNTRY_NAMES = {
+  ko: { JP: "일본", KR: "한국", CN: "중국", TW: "대만", US: "미국", "??": "기타" },
+  ja: { JP: "日本", KR: "韓国", CN: "中国", TW: "台湾", US: "米国", "??": "その他" },
+};
+const GENRE_NAMES = {
+  ko: { Action: "액션", Adventure: "모험", Comedy: "코미디", Drama: "드라마", Ecchi: "에치",
+    Fantasy: "판타지", Horror: "호러", "Mahou Shoujo": "마법소녀", Mecha: "메카", Music: "음악",
+    Mystery: "미스터리", Psychological: "심리", Romance: "로맨스", "Sci-Fi": "SF",
+    "Slice of Life": "일상", Sports: "스포츠", Supernatural: "초자연", Thriller: "스릴러" },
+  ja: { Action: "アクション", Adventure: "冒険", Comedy: "コメディ", Drama: "ドラマ", Ecchi: "エッチ",
+    Fantasy: "ファンタジー", Horror: "ホラー", "Mahou Shoujo": "魔法少女", Mecha: "メカ", Music: "音楽",
+    Mystery: "ミステリー", Psychological: "心理", Romance: "ロマンス", "Sci-Fi": "SF",
+    "Slice of Life": "日常", Sports: "スポーツ", Supernatural: "超自然", Thriller: "スリラー" },
+};
+// 카테고리 색(검증된 팔레트 — 색맹 안전). 원작/국가 등 아이덴티티용.
+const OV_COLORS = ["#3987e5", "#199e70", "#c98500", "#9085e9", "#e66767", "#6da7ec"];
 // 미방영이라 평점 제외하는 일본어 권역 안내문(없으면 data.notes 사용)
 const NOTES_JA = "地域別の実視聴はNetflix Top10内のTVアニメのみを反映し、カタログの制約により抜けがある場合があります。";
 
@@ -98,6 +132,9 @@ function seasonLabel(season, year) {
 function epLabel(n) {
   return state.lang === "ja" ? `全${n}話` : `${n}화`;
 }
+function sourceName(k) { return (SOURCE_NAMES[state.lang] || SOURCE_NAMES.ko)[k] || k; }
+function countryName(c) { return (COUNTRY_NAMES[state.lang] || COUNTRY_NAMES.ko)[c] || c; }
+function genreName(g) { return (GENRE_NAMES[state.lang] || GENRE_NAMES.ko)[g] || g; }
 
 const PLACEHOLDER =
   "data:image/svg+xml;utf8," +
@@ -235,6 +272,134 @@ function renderUpcoming() {
   grid.innerHTML = list.length
     ? list.map((it) => animeCard(it, state.upcomingSort)).join("")
     : `<p class="empty">${t("empty.upcoming")}</p>`;
+}
+
+// ---- 시장 개요 대시보드 ----
+function ovDonut(items, centerText) {
+  const R = 42, C = 2 * Math.PI * R;
+  let off = 0;
+  const segs = items.map((it, i) => {
+    const len = (it.pct / 100) * C;
+    const col = OV_COLORS[i % OV_COLORS.length];
+    const s = `<circle cx="54" cy="54" r="${R}" fill="none" stroke="${col}" stroke-width="16" ` +
+      `stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}"/>`;
+    off += len;
+    return s;
+  }).join("");
+  return `<svg width="108" height="108" viewBox="0 0 108 108" role="img" aria-label="${t("ov.source")}">
+    <g transform="rotate(-90 54 54)"><circle cx="54" cy="54" r="${R}" fill="none" stroke="var(--bg-elev2)" stroke-width="16"/>${segs}</g>
+    <text x="54" y="50" text-anchor="middle" fill="var(--text)" font-size="17" font-weight="700">${centerText}</text>
+    <text x="54" y="65" text-anchor="middle" fill="var(--text-dim)" font-size="9">${t("ov.unit.works")}</text>
+  </svg>`;
+}
+
+function barsHtml(rows, colorFn, fmtVal) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return rows.map((r, i) => {
+    const w = Math.max(3, Math.round((r.value / max) * 100));
+    return `<div class="bar"><span class="bn" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>` +
+      `<span class="track"><span class="fill" style="width:${w}%;background:${colorFn(i)}"></span></span>` +
+      `<span class="bv">${fmtVal ? fmtVal(r) : r.value}</span></div>`;
+  }).join("");
+}
+
+function heatColor(rank) {
+  if (rank == null) return null;
+  if (rank <= 1) return "#5598e7";
+  if (rank <= 3) return "#3987e5";
+  if (rank <= 5) return "#256abf";
+  if (rank <= 7) return "#1c5cab";
+  return "#184f95";
+}
+
+function moverBadge(delta) {
+  if (delta === "new") return { cls: "new", txt: "NEW" };
+  const n = parseInt(delta, 10);
+  if (!isNaN(n) && n > 0) return { cls: "up", txt: `▲ ${n}` };
+  if (!isNaN(n) && n < 0) return { cls: "down", txt: `▼ ${Math.abs(n)}` };
+  return { cls: "", txt: "–" };
+}
+
+function renderOverview() {
+  const ov = state.data.overview;
+  const label = document.getElementById("overview-label");
+  if (label) label.textContent = ov && ov.season ? `(${seasonLabel(ov.season, ov.season_year)})` : "";
+  if (!ov) return;
+  const none = `<div class="ov-empty">${t("ov.none")}</div>`;
+
+  // KPI
+  const k = ov.kpi || {};
+  const tt = k.top_trending || {};
+  const kpis = document.getElementById("ov-kpis");
+  if (kpis) kpis.innerHTML =
+    `<div class="kpi"><div class="lab">${t("ov.k.count")}</div><div class="val">${k.count ?? "-"}<small> ${t("ov.unit.works")}</small></div><div class="foot">${t("ov.works")}</div></div>` +
+    `<div class="kpi"><div class="lab">${t("ov.k.new")}</div><div class="val">${k.new_pct ?? "-"}<small>%</small></div><div class="foot">${t("ov.new")} ${k.new_count ?? "-"} · ${t("ov.sequel")} ${k.sequel_count ?? "-"}</div></div>` +
+    `<div class="kpi"><div class="lab">${t("ov.k.score")}</div><div class="val">${k.avg_score ?? "-"}</div><div class="foot">&nbsp;</div></div>` +
+    `<div class="kpi"><div class="lab">${t("ov.k.top")}</div><div class="val sm">${escapeHtml(tt.title || "-")}</div><div class="foot"><span class="acc">🔥 ${tt.value ?? "-"}</span> ${t("ov.trending")}</div></div>`;
+
+  // 원작 도넛
+  const srcEl = document.getElementById("ov-source");
+  if (srcEl) {
+    const items = ov.source || [];
+    if (!items.length) srcEl.innerHTML = none;
+    else {
+      const legend = items.map((it, i) =>
+        `<div><span class="sw" style="background:${OV_COLORS[i % OV_COLORS.length]}"></span>${escapeHtml(sourceName(it.key))}<span class="pct">${it.pct}%</span></div>`
+      ).join("");
+      srcEl.innerHTML = `<div class="donut-wrap">${ovDonut(items, k.count ?? "")}<div class="donut-legend">${legend}</div></div>`;
+    }
+  }
+
+  // 장르 / 국가 / 스튜디오 바
+  const gEl = document.getElementById("ov-genres");
+  if (gEl) {
+    const rows = (ov.genres || []).slice(0, 6).map((g) => ({ name: genreName(g.name), value: g.count }));
+    gEl.innerHTML = rows.length ? barsHtml(rows, () => "var(--accent)") : none;
+  }
+  const cEl = document.getElementById("ov-countries");
+  if (cEl) {
+    const rows = (ov.countries || []).slice(0, 4).map((c) => ({ name: countryName(c.code), value: c.count, pct: c.pct }));
+    cEl.innerHTML = rows.length ? barsHtml(rows, (i) => OV_COLORS[i % OV_COLORS.length], (r) => `${r.pct}%`) : none;
+  }
+  const stEl = document.getElementById("ov-studios");
+  if (stEl) {
+    const rows = (ov.studios || []).slice(0, 5).map((s) => ({ name: s.name, value: s.count }));
+    stEl.innerHTML = rows.length ? barsHtml(rows, () => "#9085e9") : none;
+  }
+
+  // 히트맵
+  const hEl = document.getElementById("ov-heatmap");
+  if (hEl) {
+    const h = ov.heatmap || {};
+    const titles = h.titles || [];
+    if (!titles.length) hEl.innerHTML = none;
+    else {
+      const shortT = (s) => { s = s || ""; return s.length > 10 ? s.slice(0, 9) + "…" : s; };
+      const head = `<tr><th class="rowh"></th>` +
+        titles.map((ti) => `<th title="${escapeHtml(ti.title)}">${escapeHtml(shortT(ti.title))}</th>`).join("") + `</tr>`;
+      const body = (h.regions || []).map((rg) => {
+        const cells = titles.map((_, i) => {
+          const rank = (h.cells[rg] || {})[String(i)];
+          const col = heatColor(rank);
+          return col ? `<td style="background:${col}">${rank}</td>` : `<td class="empty">·</td>`;
+        }).join("");
+        return `<tr><th class="rowh">${escapeHtml(regionName(rg))}</th>${cells}</tr>`;
+      }).join("");
+      hEl.innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    }
+  }
+
+  // 무버
+  const mEl = document.getElementById("ov-movers");
+  if (mEl) {
+    const mv = ov.movers || [];
+    mEl.innerHTML = mv.length ? mv.map((m) => {
+      const b = moverBadge(m.delta);
+      const href = m.anilist_id ? `https://anilist.co/anime/${m.anilist_id}` : "#";
+      return `<a class="mv" href="${escapeHtml(href)}" target="_blank" rel="noopener">` +
+        `<span class="badge ${b.cls}">${b.txt}</span><span class="nm">${escapeHtml(m.title)}</span></a>`;
+    }).join("") : none;
+  }
 }
 
 // ---- 랭킹 탭 전환 ----
@@ -417,6 +582,7 @@ function applyLang(lang) {
   // 동적 영역 재렌더
   if (!state.data) return;
   renderMeta();
+  renderOverview();
   renderGlobal();
   renderSeasonal();
   renderUpcomingChips();
@@ -461,9 +627,12 @@ async function init() {
   const s = state.data.seasonal;
   const hasSeasonal = s && ((s.trending && s.trending.length) ||
     (s.popularity && s.popularity.length) || (s.score && s.score.length));
+  setTabAvailable("overview", !!state.data.overview);
   setTabAvailable("seasonal", !!hasSeasonal);
   setTabAvailable("upcoming", seasonsUpcoming().length > 0);
 
+  // overview 데이터가 없으면 글로벌로 폴백
+  if (state.view === "overview" && !state.data.overview) state.view = "global";
   switchView(state.view);
   applyLang(state.lang); // 정적 라벨 + 전체 렌더를 한 번에 처리
 }
